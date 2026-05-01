@@ -1,36 +1,82 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Lectio — Bible Reading Tracker
 
-## Getting Started
+A quiet record of chapters read, from Genesis through Revelation. Track your progress through the Protestant 66-book canon, maintain reading streaks, and compare with friends.
 
-First, run the development server:
+## Stack
+
+- **Next.js 16** · App Router · Server Components
+- **TypeScript** strict mode
+- **Tailwind CSS v4**
+- **Supabase** — Postgres + Auth + RLS
+- **TanStack Query** — reactive client-side data
+- **Recharts** — progress charts
+- **React Hook Form + Zod** — validated forms
+
+## Setup
+
+### 1. Install dependencies
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+pnpm install
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+### 2. Create a Supabase project
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+Go to [supabase.com](https://supabase.com), create a project, then copy your credentials.
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+### 3. Configure environment variables
 
-## Learn More
+```bash
+cp .env.local.example .env.local
+```
 
-To learn more about Next.js, take a look at the following resources:
+Edit `.env.local` and fill in:
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+```
+NEXT_PUBLIC_SUPABASE_URL=https://your-project-ref.supabase.co
+NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-key
+```
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+### 4. Run the database migration
 
-## Deploy on Vercel
+In your Supabase dashboard → SQL Editor, paste and run the contents of:
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+```
+supabase/migrations/001_initial.sql
+```
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+This creates the `profiles`, `reading_entries`, and `friendships` tables with RLS policies.
+
+### 5. Enable Google OAuth (optional)
+
+In Supabase dashboard → Authentication → Providers → Google, enable Google and add your OAuth credentials. Set the redirect URL to `https://your-domain/auth/callback`.
+
+### 6. Regenerate TypeScript types (after schema changes)
+
+```bash
+pnpm db:types
+```
+
+Requires the Supabase CLI: `npm install -g supabase`.
+
+### 7. Run dev server
+
+```bash
+pnpm dev
+```
+
+Open [http://localhost:3000](http://localhost:3000).
+
+## Scripts
+
+| Command | Description |
+|---|---|
+| `pnpm dev` | Start dev server |
+| `pnpm build` | Production build |
+| `pnpm typecheck` | TypeScript check |
+| `pnpm test` | Run Vitest unit tests |
+| `pnpm db:types` | Regenerate Supabase types |
+
+## Deploy
+
+Deploy to Vercel. Set `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_ANON_KEY` in your Vercel project environment variables.
