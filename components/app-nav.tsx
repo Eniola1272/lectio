@@ -126,7 +126,11 @@ export function AppNav({ userId, initialProgress }: AppNavProps) {
         open={loggerOpen}
         onClose={() => setLoggerOpen(false)}
         userId={userId}
+        currentOtBook={progress?.ot_book ?? undefined}
+        currentOtChapter={progress?.ot_chapter ?? undefined}
         currentOtIndex={progress?.ot_chapter_index ?? 0}
+        currentNtBook={progress?.nt_book ?? undefined}
+        currentNtChapter={progress?.nt_chapter ?? undefined}
         currentNtIndex={progress?.nt_chapter_index ?? 0}
       />
     </>

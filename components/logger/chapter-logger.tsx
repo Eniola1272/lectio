@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   Dialog,
   DialogContent,
@@ -12,12 +12,17 @@ import {
 import { BIBLE, chapterIndex, TOTAL_OT_CH, type Testament } from "@/lib/bible";
 import { useSetProgress } from "@/lib/queries/use-progress";
 import { computeStats } from "@/lib/stats";
+import { ChevronDown, ChevronRight } from "lucide-react";
 
 interface ChapterLoggerProps {
   open: boolean;
   onClose: () => void;
   userId: string;
+  currentOtBook?: string;
+  currentOtChapter?: number;
   currentOtIndex?: number;
+  currentNtBook?: string;
+  currentNtChapter?: number;
   currentNtIndex?: number;
 }
 
@@ -25,26 +30,44 @@ export function ChapterLogger({
   open,
   onClose,
   userId,
+  currentOtBook,
+  currentOtChapter,
   currentOtIndex = 0,
+  currentNtBook,
+  currentNtChapter,
   currentNtIndex = 0,
 }: ChapterLoggerProps) {
   const [testament, setTestament] = useState<Testament>("old");
-  const [book, setBook] = useState<{ name: string; chapters: number } | null>(null);
-  const [chapter, setChapter] = useState<number | null>(null);
+  const [expandedBook, setExpandedBook] = useState<string | null>(null);
+  const [selectedBook, setSelectedBook] = useState<{ name: string; chapters: number } | null>(null);
+  const [selectedChapter, setSelectedChapter] = useState<number | null>(null);
 
   const setProgress = useSetProgress(userId);
 
+  // Derive current bookmark for whichever testament is active
+  const currentBook = testament === "old" ? currentOtBook : currentNtBook;
+  const currentChapter = testament === "old" ? currentOtChapter : currentNtChapter;
+
+  // On open or testament switch — auto-expand the current bookmarked book, clear new selection
+  useEffect(() => {
+    if (open) {
+      setSelectedBook(null);
+      setSelectedChapter(null);
+      setExpandedBook(currentBook ?? null);
+    }
+  }, [open, testament]); // eslint-disable-line react-hooks/exhaustive-deps
+
   const books = BIBLE[testament];
 
-  // Testament-relative index of selected chapter
+  // Testament-relative index for the newly selected position
   const selectedIndex =
-    book && chapter
+    selectedBook && selectedChapter
       ? testament === "old"
-        ? chapterIndex(book.name, chapter)
-        : chapterIndex(book.name, chapter) - TOTAL_OT_CH
+        ? chapterIndex(selectedBook.name, selectedChapter)
+        : chapterIndex(selectedBook.name, selectedChapter) - TOTAL_OT_CH
       : null;
 
-  // Preview: what would stats look like if this bookmark moved?
+  // Preview stats for the selected position
   const previewStats =
     selectedIndex !== null && selectedIndex > 0
       ? testament === "old"
@@ -53,27 +76,36 @@ export function ChapterLogger({
       : null;
 
   const handleSave = async () => {
-    if (!book || !chapter || !selectedIndex) return;
+    if (!selectedBook || !selectedChapter || !selectedIndex) return;
     await setProgress.mutateAsync({
       testament,
-      book: book.name,
-      chapter,
+      book: selectedBook.name,
+      chapter: selectedChapter,
       chapter_index: selectedIndex,
     });
     onClose();
-    setBook(null);
-    setChapter(null);
+    setSelectedBook(null);
+    setSelectedChapter(null);
   };
 
   const switchTestament = (t: Testament) => {
     setTestament(t);
-    setBook(null);
-    setChapter(null);
+    setSelectedBook(null);
+    setSelectedChapter(null);
   };
 
-  // Current bookmark index for this testament (to highlight in the grid)
-  const currentIndexForTestament =
-    testament === "old" ? currentOtIndex : currentNtIndex;
+  const toggleBook = (bookName: string, bookObj: { name: string; chapters: number }) => {
+    if (expandedBook === bookName) {
+      setExpandedBook(null);
+    } else {
+      setExpandedBook(bookName);
+      // Clear chapter selection when switching to a different book
+      if (selectedBook?.name !== bookName) {
+        setSelectedBook(bookObj);
+        setSelectedChapter(null);
+      }
+    }
+  };
 
   return (
     <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
@@ -85,18 +117,6 @@ export function ChapterLogger({
 
         <div className="px-6 pt-4 overflow-y-auto flex-1">
           {/* Testament toggle */}
-          <div
-            style={{
-              fontFamily: "DM Mono, monospace",
-              fontSize: 10,
-              letterSpacing: "0.3em",
-              color: "#7a5d3a",
-              textTransform: "uppercase",
-              marginBottom: 8,
-            }}
-          >
-            Testament
-          </div>
           <div className="flex gap-2 mb-5">
             {(["old", "new"] as Testament[]).map((t) => (
               <button
@@ -118,221 +138,198 @@ export function ChapterLogger({
             ))}
           </div>
 
-          {/* Book grid */}
-          <div
-            style={{
-              fontFamily: "DM Mono, monospace",
-              fontSize: 10,
-              letterSpacing: "0.3em",
-              color: "#7a5d3a",
-              textTransform: "uppercase",
-              marginBottom: 8,
-            }}
-          >
-            Book
-          </div>
-          <div className="grid grid-cols-3 sm:grid-cols-4 gap-2 mb-5">
-            {books.map((b) => (
-              <button
-                key={b.name}
-                onClick={() => {
-                  setBook(b);
-                  setChapter(null);
-                }}
-                className="p-3 text-left transition-all"
-                style={{
-                  background: book?.name === b.name ? "#a87132" : "#fbf6ea",
-                  color: book?.name === b.name ? "#f4ede0" : "#2c1d0f",
-                  border: "1px solid #d4be96",
-                  fontSize: 14,
-                  fontStyle: "italic",
-                  fontFamily: "Cormorant Garamond, serif",
-                }}
-              >
-                {b.name}
-              </button>
-            ))}
-          </div>
+          {/* Book accordion list */}
+          <div style={{ border: "1px solid #d4be96" }}>
+            {books.map((b, i) => {
+              const isExpanded = expandedBook === b.name;
+              const isCurrentBook = currentBook === b.name;
+              const hasNewSelection = selectedBook?.name === b.name && selectedChapter !== null;
 
-          {/* Chapter grid */}
-          {book && (
-            <>
-              <div
-                style={{
-                  fontFamily: "DM Mono, monospace",
-                  fontSize: 10,
-                  letterSpacing: "0.3em",
-                  color: "#7a5d3a",
-                  textTransform: "uppercase",
-                  marginBottom: 8,
-                }}
-              >
-                Chapter in{" "}
-                <em style={{ fontFamily: "Cormorant Garamond, serif" }}>
-                  {book.name}
-                </em>
-              </div>
-              <div className="grid grid-cols-8 sm:grid-cols-10 gap-1 mb-5">
-                {Array.from({ length: book.chapters }, (_, i) => i + 1).map(
-                  (n) => {
-                    const absIdx = chapterIndex(book.name, n);
-                    const relIdx =
-                      testament === "old" ? absIdx : absIdx - TOTAL_OT_CH;
-                    const isCurrent = relIdx === currentIndexForTestament;
-                    const selected = chapter === n;
-                    return (
-                      <button
-                        key={n}
-                        onClick={() => setChapter(n)}
+              return (
+                <div
+                  key={b.name}
+                  style={{ borderTop: i === 0 ? "none" : "1px solid #d4be96" }}
+                >
+                  {/* Book header row */}
+                  <button
+                    onClick={() => toggleBook(b.name, b)}
+                    style={{
+                      width: "100%",
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 10,
+                      padding: "10px 12px",
+                      background: hasNewSelection
+                        ? "#2c1d0f"
+                        : isExpanded
+                        ? "#f0e8d8"
+                        : "#fbf6ea",
+                      color: hasNewSelection ? "#f4ede0" : "#2c1d0f",
+                      textAlign: "left",
+                    }}
+                  >
+                    {/* Expand chevron */}
+                    <span style={{ color: hasNewSelection ? "#a87132" : "#c9b890", flexShrink: 0 }}>
+                      {isExpanded ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
+                    </span>
+
+                    {/* Book name */}
+                    <span
+                      style={{
+                        flex: 1,
+                        fontSize: 17,
+                        fontStyle: "italic",
+                        fontFamily: "Cormorant Garamond, serif",
+                      }}
+                    >
+                      {b.name}
+                    </span>
+
+                    {/* Current bookmark indicator */}
+                    {isCurrentBook && (
+                      <span
                         style={{
-                          aspectRatio: "1",
-                          display: "flex",
-                          alignItems: "center",
-                          justifyContent: "center",
-                          background: selected
-                            ? "#2c1d0f"
-                            : isCurrent
-                            ? "#a87132"
-                            : "#fbf6ea",
-                          color: selected || isCurrent ? "#f4ede0" : "#2c1d0f",
-                          border: "1px solid #d4be96",
                           fontFamily: "DM Mono, monospace",
-                          fontSize: 11,
-                          position: "relative",
+                          fontSize: 10,
+                          letterSpacing: "0.15em",
+                          color: hasNewSelection ? "#c9b890" : "#a87132",
+                          textTransform: "uppercase",
                         }}
-                        title={isCurrent ? "Current bookmark" : undefined}
                       >
-                        {n}
-                        {isCurrent && !selected && (
-                          <span
-                            style={{
-                              position: "absolute",
-                              top: 2,
-                              right: 3,
-                              width: 4,
-                              height: 4,
-                              borderRadius: "50%",
-                              background: "#f4ede0",
-                            }}
-                          />
-                        )}
-                      </button>
-                    );
-                  }
-                )}
-              </div>
-            </>
-          )}
+                        {currentChapter !== undefined ? `ch. ${currentChapter}` : "bookmark"}
+                      </span>
+                    )}
 
-          {/* Live preview stats */}
-          {previewStats && (
-            <div
-              className="mb-4 p-4"
-              style={{ background: "#f4ede0", border: "1px solid #d4be96" }}
-            >
-              <div
-                style={{
-                  fontFamily: "DM Mono, monospace",
-                  fontSize: 10,
-                  letterSpacing: "0.3em",
-                  color: "#7a5d3a",
-                  textTransform: "uppercase",
-                  marginBottom: 8,
-                }}
-              >
-                At this position
-              </div>
-              <div className="flex gap-8">
-                <div>
+                    {/* New selection indicator */}
+                    {hasNewSelection && (
+                      <span
+                        style={{
+                          fontFamily: "DM Mono, monospace",
+                          fontSize: 10,
+                          letterSpacing: "0.15em",
+                          color: "#a87132",
+                          textTransform: "uppercase",
+                        }}
+                      >
+                        → ch. {selectedChapter}
+                      </span>
+                    )}
+                  </button>
+
+                  {/* Chapter grid — slides in/out */}
                   <div
                     style={{
-                      fontSize: 28,
-                      fontStyle: "italic",
-                      fontFamily: "Cormorant Garamond, serif",
+                      overflow: "hidden",
+                      maxHeight: isExpanded ? "600px" : "0",
+                      transition: "max-height 0.22s ease",
                     }}
                   >
-                    {previewStats.totalPct.toFixed(1)}
-                    <span style={{ fontSize: 14, color: "#a87132" }}>%</span>
-                  </div>
-                  <div
-                    style={{
-                      fontFamily: "DM Mono, monospace",
-                      fontSize: 10,
-                      color: "#7a5d3a",
-                    }}
-                  >
-                    of Bible
+                    <div
+                      style={{
+                        padding: "10px 12px 12px",
+                        background: "#f8f3e8",
+                        borderTop: "1px solid #e4d4ac",
+                      }}
+                    >
+                      <div
+                        style={{
+                          display: "grid",
+                          gridTemplateColumns: "repeat(10, 1fr)",
+                          gap: 4,
+                        }}
+                      >
+                        {Array.from({ length: b.chapters }, (_, i) => i + 1).map((n) => {
+                          const absIdx = chapterIndex(b.name, n);
+                          const relIdx = testament === "old" ? absIdx : absIdx - TOTAL_OT_CH;
+                          const isCurrent = isCurrentBook && relIdx === (testament === "old" ? currentOtIndex : currentNtIndex);
+                          const isSelected = selectedBook?.name === b.name && selectedChapter === n;
+
+                          return (
+                            <button
+                              key={n}
+                              onClick={() => {
+                                setSelectedBook(b);
+                                setSelectedChapter(n);
+                              }}
+                              title={isCurrent ? "Current bookmark" : undefined}
+                              style={{
+                                aspectRatio: "1",
+                                display: "flex",
+                                alignItems: "center",
+                                justifyContent: "center",
+                                background: isSelected
+                                  ? "#2c1d0f"
+                                  : isCurrent
+                                  ? "#a87132"
+                                  : "#fbf6ea",
+                                color: isSelected || isCurrent ? "#f4ede0" : "#2c1d0f",
+                                border: "1px solid #d4be96",
+                                fontFamily: "DM Mono, monospace",
+                                fontSize: 11,
+                                position: "relative",
+                              }}
+                            >
+                              {n}
+                              {isCurrent && !isSelected && (
+                                <span
+                                  style={{
+                                    position: "absolute",
+                                    top: 2,
+                                    right: 3,
+                                    width: 4,
+                                    height: 4,
+                                    borderRadius: "50%",
+                                    background: "#f4ede0",
+                                  }}
+                                />
+                              )}
+                            </button>
+                          );
+                        })}
+                      </div>
+
+                      {/* Inline preview stats when a chapter is selected */}
+                      {previewStats && selectedBook?.name === b.name && selectedChapter !== null && (
+                        <div
+                          style={{
+                            marginTop: 12,
+                            padding: "10px 12px",
+                            background: "#f4ede0",
+                            border: "1px solid #d4be96",
+                            display: "flex",
+                            gap: 24,
+                          }}
+                        >
+                          <Stat
+                            value={`${previewStats.totalPct.toFixed(1)}%`}
+                            label="of Bible"
+                          />
+                          {testament === "old" ? (
+                            <Stat
+                              value={`${previewStats.otPct.toFixed(1)}%`}
+                              label="of OT"
+                              accent="#a87132"
+                            />
+                          ) : (
+                            <Stat
+                              value={`${previewStats.ntPct.toFixed(1)}%`}
+                              label="of NT"
+                              accent="#5d7a3a"
+                            />
+                          )}
+                          <Stat
+                            value={previewStats.chaptersLeftInBible}
+                            label="chapters left"
+                            accent="#5d7a3a"
+                          />
+                        </div>
+                      )}
+                    </div>
                   </div>
                 </div>
-                {testament === "old" ? (
-                  <div>
-                    <div
-                      style={{
-                        fontSize: 28,
-                        fontStyle: "italic",
-                        fontFamily: "Cormorant Garamond, serif",
-                      }}
-                    >
-                      {previewStats.otPct.toFixed(1)}
-                      <span style={{ fontSize: 14, color: "#a87132" }}>%</span>
-                    </div>
-                    <div
-                      style={{
-                        fontFamily: "DM Mono, monospace",
-                        fontSize: 10,
-                        color: "#7a5d3a",
-                      }}
-                    >
-                      of Old Testament
-                    </div>
-                  </div>
-                ) : (
-                  <div>
-                    <div
-                      style={{
-                        fontSize: 28,
-                        fontStyle: "italic",
-                        fontFamily: "Cormorant Garamond, serif",
-                      }}
-                    >
-                      {previewStats.ntPct.toFixed(1)}
-                      <span style={{ fontSize: 14, color: "#5d7a3a" }}>%</span>
-                    </div>
-                    <div
-                      style={{
-                        fontFamily: "DM Mono, monospace",
-                        fontSize: 10,
-                        color: "#7a5d3a",
-                      }}
-                    >
-                      of New Testament
-                    </div>
-                  </div>
-                )}
-                <div>
-                  <div
-                    style={{
-                      fontSize: 28,
-                      fontStyle: "italic",
-                      fontFamily: "Cormorant Garamond, serif",
-                      color: "#5d7a3a",
-                    }}
-                  >
-                    {previewStats.chaptersLeftInBible}
-                  </div>
-                  <div
-                    style={{
-                      fontFamily: "DM Mono, monospace",
-                      fontSize: 10,
-                      color: "#7a5d3a",
-                    }}
-                  >
-                    chapters left
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
+              );
+            })}
+          </div>
         </div>
 
         <DialogFooter>
@@ -341,31 +338,45 @@ export function ChapterLogger({
               fontFamily: "DM Mono, monospace",
               fontSize: 11,
               color: "#7a5d3a",
+              display: "flex",
+              flexDirection: "column",
+              gap: 2,
             }}
           >
-            {book && chapter ? (
-              <span>
-                <em style={{ fontFamily: "Cormorant Garamond, serif" }}>
-                  {book.name}
-                </em>
-                &nbsp;·&nbsp; ch. {chapter}
+            {/* Current bookmark (always visible if set) */}
+            {currentBook && currentChapter && (
+              <span style={{ color: "#a89070", fontSize: 10 }}>
+                now:{" "}
+                <em style={{ fontFamily: "Cormorant Garamond, serif", fontSize: 13 }}>
+                  {currentBook}
+                </em>{" "}
+                ch. {currentChapter}
               </span>
-            ) : (
-              "Pick where you are"
             )}
+            {/* New selection */}
+            {selectedBook && selectedChapter ? (
+              <span>
+                <em style={{ fontFamily: "Cormorant Garamond, serif", fontSize: 15 }}>
+                  {selectedBook.name}
+                </em>
+                &nbsp;·&nbsp;ch. {selectedChapter}
+              </span>
+            ) : !currentBook ? (
+              <span style={{ color: "#a89070" }}>Select a chapter above</span>
+            ) : null}
           </div>
           <button
             onClick={handleSave}
-            disabled={!book || !chapter || setProgress.isPending}
+            disabled={!selectedBook || !selectedChapter || setProgress.isPending}
             className="px-6 py-3 transition-all"
             style={{
-              background: book && chapter ? "#2c1d0f" : "#c9b890",
+              background: selectedBook && selectedChapter ? "#2c1d0f" : "#c9b890",
               color: "#f4ede0",
               fontFamily: "DM Mono, monospace",
               fontSize: 11,
               letterSpacing: "0.2em",
               textTransform: "uppercase",
-              cursor: book && chapter ? "pointer" : "not-allowed",
+              cursor: selectedBook && selectedChapter ? "pointer" : "not-allowed",
             }}
           >
             {setProgress.isPending ? "Saving..." : "Set Bookmark →"}
@@ -373,5 +384,43 @@ export function ChapterLogger({
         </DialogFooter>
       </DialogContent>
     </Dialog>
+  );
+}
+
+function Stat({
+  value,
+  label,
+  accent,
+}: {
+  value: string | number;
+  label: string;
+  accent?: string;
+}) {
+  return (
+    <div>
+      <div
+        style={{
+          fontSize: 22,
+          fontStyle: "italic",
+          fontFamily: "Cormorant Garamond, serif",
+          lineHeight: 1,
+          color: accent ?? "#2c1d0f",
+        }}
+      >
+        {value}
+      </div>
+      <div
+        style={{
+          fontFamily: "DM Mono, monospace",
+          fontSize: 9,
+          color: "#7a5d3a",
+          marginTop: 3,
+          letterSpacing: "0.1em",
+          textTransform: "uppercase",
+        }}
+      >
+        {label}
+      </div>
+    </div>
   );
 }
