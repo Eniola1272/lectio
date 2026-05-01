@@ -111,7 +111,7 @@ export function FriendsView({
             {pendingRequests.map((r) => (
               <div
                 key={`${r.user_a}-${r.user_b}`}
-                className="flex items-center justify-between p-4"
+                className="flex items-center justify-between gap-4 flex-wrap p-4"
                 style={{ background: "#fbf6ea", border: "1px solid #d4be96" }}
               >
                 <div style={{ fontSize: 19, fontStyle: "italic" }}>
@@ -228,7 +228,7 @@ export function FriendsView({
                 >
                   {String(i + 1).padStart(2, "0")}
                 </div>
-                <div style={{ fontSize: 22, fontStyle: "italic", flex: 1 }}>
+                <div style={{ fontSize: 19, fontStyle: "italic", flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                   {p.display_name}
                   {p.isMe && (
                     <span
@@ -244,8 +244,9 @@ export function FriendsView({
                     </span>
                   )}
                 </div>
-                <div className="flex items-baseline gap-4">
+                <div className="flex items-baseline gap-2 sm:gap-4">
                   <div
+                    className="hidden sm:block"
                     style={{
                       fontFamily: "DM Mono, monospace",
                       fontSize: 10,
@@ -255,11 +256,12 @@ export function FriendsView({
                     <span style={{ color: "#a87132" }}>OT</span> {p.otIdx}&nbsp;·&nbsp;
                     <span style={{ color: "#5d7a3a" }}>NT</span> {p.ntIdx}
                   </div>
-                  <div style={{ fontSize: 24, fontStyle: "italic", minWidth: 70, textAlign: "right" }}>
+                  <div style={{ fontSize: 22, fontStyle: "italic", textAlign: "right", whiteSpace: "nowrap" }}>
                     {p.stats.totalPct.toFixed(1)}%
                   </div>
                 </div>
                 <div
+                  className="hidden sm:block"
                   style={{
                     flex: "0 0 80px",
                     height: 3,
@@ -284,7 +286,7 @@ export function FriendsView({
 
       {/* Comparison chart */}
       {friends.length > 0 && (
-        <div className="p-8" style={{ background: "#fbf6ea", border: "1px solid #d4be96" }}>
+        <div className="p-4 sm:p-8" style={{ background: "#fbf6ea", border: "1px solid #d4be96" }}>
           <SectionTitle eyebrow="Comparison" title="Chapters covered · last 30 days" />
           <div style={{ marginTop: 24 }}>
             <CumulativeLineChart data={chartData} series={chartSeries} />

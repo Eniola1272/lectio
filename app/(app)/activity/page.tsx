@@ -29,7 +29,7 @@ export default async function ActivityPage() {
 
   return (
     <div className="space-y-10">
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-6">
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-6">
         <StatCard label="Chapters advanced" value={total30} sub="last 30 days" />
         <StatCard label="Active days" value={activeDays} sub="of last 30" />
         <StatCard
@@ -47,7 +47,7 @@ export default async function ActivityPage() {
       </div>
 
       <div
-        className="p-8"
+        className="p-4 sm:p-8"
         style={{ background: "#fbf6ea", border: "1px solid #d4be96" }}
       >
         <SectionTitle eyebrow="Rhythm" title="Last 30 days" />
@@ -75,16 +75,16 @@ export default async function ActivityPage() {
             {recent.map((e, i) => (
               <div
                 key={i}
-                className="flex items-center justify-between py-3"
+                className="flex items-center justify-between py-3 gap-2"
                 style={{ borderBottom: "1px dotted #d4be96" }}
               >
-                <div className="flex items-center gap-4">
+                <div className="flex items-center gap-2 sm:gap-4 min-w-0">
                   <div
                     style={{
                       fontFamily: "DM Mono, monospace",
                       fontSize: 11,
                       color: "#7a5d3a",
-                      minWidth: 80,
+                      flexShrink: 0,
                     }}
                   >
                     {new Date(e.recorded_at).toLocaleDateString("en", {

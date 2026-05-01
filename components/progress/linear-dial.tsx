@@ -65,12 +65,12 @@ function StatRow({
   items: { value: string | number; sub: string; color?: string }[];
 }) {
   return (
-    <div style={{ display: "flex", gap: 32, marginTop: 20, flexWrap: "wrap" }}>
+    <div style={{ display: "flex", gap: 20, marginTop: 20, flexWrap: "wrap" }}>
       {items.map((item) => (
         <div key={item.sub}>
           <div
             style={{
-              fontSize: 36,
+              fontSize: "clamp(24px, 6vw, 36px)",
               fontStyle: "italic",
               fontFamily: "Cormorant Garamond, serif",
               lineHeight: 1,

@@ -32,7 +32,7 @@ export default async function AppLayout({
 
   return (
     <div className="min-h-screen relative z-10">
-      <div className="max-w-5xl mx-auto px-6 py-10">
+      <div className="max-w-5xl mx-auto px-4 sm:px-6 py-6 sm:py-10">
         <AppNav userId={user.id} initialProgress={progressData ?? null} />
         {children}
         <footer

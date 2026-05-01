@@ -12,6 +12,8 @@ const tabs = [
   { href: "/", label: "01 — Progress" },
   { href: "/activity", label: "02 — Activity" },
   { href: "/friends", label: "03 — Friends" },
+  { href: "/how-to-use", label: "04 — How to Use" },
+  { href: "/about", label: "05 — About" },
 ];
 
 interface AppNavProps {
@@ -29,7 +31,7 @@ export function AppNav({ userId, initialProgress }: AppNavProps) {
   return (
     <>
       <header className="mb-12">
-        <div className="flex items-baseline justify-between flex-wrap gap-4">
+        <div className="flex items-start justify-between flex-wrap gap-4">
           <div>
             <div
               style={{
@@ -48,7 +50,7 @@ export function AppNav({ userId, initialProgress }: AppNavProps) {
             </div>
             <h1
               style={{
-                fontSize: 56,
+                fontSize: "clamp(36px, 10vw, 56px)",
                 fontWeight: 500,
                 lineHeight: 1,
                 marginTop: 8,
@@ -64,7 +66,6 @@ export function AppNav({ userId, initialProgress }: AppNavProps) {
                 fontSize: 17,
                 color: "#5a4023",
                 marginTop: 6,
-                maxWidth: 480,
               }}
             >
               A quiet record of progress — from Genesis through Revelation.
@@ -92,13 +93,15 @@ export function AppNav({ userId, initialProgress }: AppNavProps) {
       </header>
 
       <nav
-        className="flex gap-8 mb-10"
+        className="flex gap-6 sm:gap-8 mb-10 overflow-x-auto"
         style={{
           fontFamily: "DM Mono, monospace",
           fontSize: 11,
           letterSpacing: "0.25em",
           textTransform: "uppercase",
-        }}
+          scrollbarWidth: "none",
+          msOverflowStyle: "none",
+        } as React.CSSProperties}
       >
         {tabs.map((t) => {
           const active =
@@ -114,6 +117,8 @@ export function AppNav({ userId, initialProgress }: AppNavProps) {
                   : "1px solid transparent",
                 paddingBottom: 6,
                 transition: "all 0.2s",
+                whiteSpace: "nowrap",
+                flexShrink: 0,
               }}
             >
               {t.label}

@@ -234,7 +234,7 @@ export function ChapterLogger({
                       <div
                         style={{
                           display: "grid",
-                          gridTemplateColumns: "repeat(10, 1fr)",
+                          gridTemplateColumns: "repeat(auto-fill, minmax(36px, 1fr))",
                           gap: 4,
                         }}
                       >
