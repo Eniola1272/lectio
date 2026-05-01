@@ -20,15 +20,20 @@ export default async function AppLayout({
     .eq("id", user.id)
     .single();
 
-  // When no profile, render children without the nav (onboarding handles its own layout)
   if (!profile) {
     return <div className="min-h-screen relative z-10">{children}</div>;
   }
 
+  const { data: progressData } = await supabase
+    .from("reading_progress")
+    .select("*")
+    .eq("user_id", user.id)
+    .single();
+
   return (
     <div className="min-h-screen relative z-10">
       <div className="max-w-5xl mx-auto px-6 py-10">
-        <AppNav userId={user.id} />
+        <AppNav userId={user.id} initialProgress={progressData ?? null} />
         {children}
         <footer
           className="mt-20 pt-8 text-center"

@@ -20,23 +20,32 @@ export interface Database {
       reading_progress: {
         Row: {
           user_id: string;
-          book: string;
-          chapter: number;
-          chapter_index: number;
+          ot_book: string | null;
+          ot_chapter: number | null;
+          ot_chapter_index: number | null;
+          nt_book: string | null;
+          nt_chapter: number | null;
+          nt_chapter_index: number | null;
           updated_at: string;
         };
         Insert: {
           user_id: string;
-          book: string;
-          chapter: number;
-          chapter_index: number;
+          ot_book?: string | null;
+          ot_chapter?: number | null;
+          ot_chapter_index?: number | null;
+          nt_book?: string | null;
+          nt_chapter?: number | null;
+          nt_chapter_index?: number | null;
           updated_at?: string;
         };
         Update: {
           user_id?: string;
-          book?: string;
-          chapter?: number;
-          chapter_index?: number;
+          ot_book?: string | null;
+          ot_chapter?: number | null;
+          ot_chapter_index?: number | null;
+          nt_book?: string | null;
+          nt_chapter?: number | null;
+          nt_chapter_index?: number | null;
           updated_at?: string;
         };
         Relationships: [];
@@ -45,6 +54,7 @@ export interface Database {
         Row: {
           id: string;
           user_id: string;
+          testament: "old" | "new";
           book: string;
           chapter: number;
           chapter_index: number;
@@ -53,6 +63,7 @@ export interface Database {
         Insert: {
           id?: string;
           user_id: string;
+          testament: "old" | "new";
           book: string;
           chapter: number;
           chapter_index: number;
@@ -61,6 +72,7 @@ export interface Database {
         Update: {
           id?: string;
           user_id?: string;
+          testament?: "old" | "new";
           book?: string;
           chapter?: number;
           chapter_index?: number;

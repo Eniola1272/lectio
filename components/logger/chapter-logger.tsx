@@ -9,22 +9,24 @@ import {
   DialogDescription,
   DialogFooter,
 } from "@/components/ui/dialog";
-import { BIBLE, chapterIndex, testamentOf, type Testament } from "@/lib/bible";
+import { BIBLE, chapterIndex, TOTAL_OT_CH, type Testament } from "@/lib/bible";
 import { useSetProgress } from "@/lib/queries/use-progress";
-import { computeStatsFromPosition } from "@/lib/stats";
+import { computeStats } from "@/lib/stats";
 
 interface ChapterLoggerProps {
   open: boolean;
   onClose: () => void;
   userId: string;
-  currentIndex?: number; // current bookmark position (1-based)
+  currentOtIndex?: number;
+  currentNtIndex?: number;
 }
 
 export function ChapterLogger({
   open,
   onClose,
   userId,
-  currentIndex = 0,
+  currentOtIndex = 0,
+  currentNtIndex = 0,
 }: ChapterLoggerProps) {
   const [testament, setTestament] = useState<Testament>("old");
   const [book, setBook] = useState<{ name: string; chapters: number } | null>(null);
@@ -34,15 +36,26 @@ export function ChapterLogger({
 
   const books = BIBLE[testament];
 
+  // Testament-relative index of selected chapter
   const selectedIndex =
-    book && chapter ? chapterIndex(book.name, chapter) : null;
-  const previewStats = selectedIndex
-    ? computeStatsFromPosition(selectedIndex)
-    : null;
+    book && chapter
+      ? testament === "old"
+        ? chapterIndex(book.name, chapter)
+        : chapterIndex(book.name, chapter) - TOTAL_OT_CH
+      : null;
+
+  // Preview: what would stats look like if this bookmark moved?
+  const previewStats =
+    selectedIndex !== null && selectedIndex > 0
+      ? testament === "old"
+        ? computeStats(selectedIndex, currentNtIndex)
+        : computeStats(currentOtIndex, selectedIndex)
+      : null;
 
   const handleSave = async () => {
     if (!book || !chapter || !selectedIndex) return;
     await setProgress.mutateAsync({
+      testament,
       book: book.name,
       chapter,
       chapter_index: selectedIndex,
@@ -57,6 +70,10 @@ export function ChapterLogger({
     setBook(null);
     setChapter(null);
   };
+
+  // Current bookmark index for this testament (to highlight in the grid)
+  const currentIndexForTestament =
+    testament === "old" ? currentOtIndex : currentNtIndex;
 
   return (
     <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
@@ -158,8 +175,10 @@ export function ChapterLogger({
               <div className="grid grid-cols-8 sm:grid-cols-10 gap-1 mb-5">
                 {Array.from({ length: book.chapters }, (_, i) => i + 1).map(
                   (n) => {
-                    const idx = chapterIndex(book.name, n);
-                    const isCurrent = idx === currentIndex;
+                    const absIdx = chapterIndex(book.name, n);
+                    const relIdx =
+                      testament === "old" ? absIdx : absIdx - TOTAL_OT_CH;
+                    const isCurrent = relIdx === currentIndexForTestament;
                     const selected = chapter === n;
                     return (
                       <button
@@ -245,29 +264,7 @@ export function ChapterLogger({
                     of Bible
                   </div>
                 </div>
-                {testamentOf(book?.name ?? "") === "new" ? (
-                  <div>
-                    <div
-                      style={{
-                        fontSize: 28,
-                        fontStyle: "italic",
-                        fontFamily: "Cormorant Garamond, serif",
-                      }}
-                    >
-                      {previewStats.ntPct.toFixed(1)}
-                      <span style={{ fontSize: 14, color: "#a87132" }}>%</span>
-                    </div>
-                    <div
-                      style={{
-                        fontFamily: "DM Mono, monospace",
-                        fontSize: 10,
-                        color: "#7a5d3a",
-                      }}
-                    >
-                      of New Testament
-                    </div>
-                  </div>
-                ) : (
+                {testament === "old" ? (
                   <div>
                     <div
                       style={{
@@ -287,6 +284,28 @@ export function ChapterLogger({
                       }}
                     >
                       of Old Testament
+                    </div>
+                  </div>
+                ) : (
+                  <div>
+                    <div
+                      style={{
+                        fontSize: 28,
+                        fontStyle: "italic",
+                        fontFamily: "Cormorant Garamond, serif",
+                      }}
+                    >
+                      {previewStats.ntPct.toFixed(1)}
+                      <span style={{ fontSize: 14, color: "#5d7a3a" }}>%</span>
+                    </div>
+                    <div
+                      style={{
+                        fontFamily: "DM Mono, monospace",
+                        fontSize: 10,
+                        color: "#7a5d3a",
+                      }}
+                    >
+                      of New Testament
                     </div>
                   </div>
                 )}

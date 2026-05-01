@@ -5,6 +5,8 @@ import { usePathname } from "next/navigation";
 import { MapPin } from "lucide-react";
 import { useState } from "react";
 import { ChapterLogger } from "@/components/logger/chapter-logger";
+import { useProgress } from "@/lib/queries/use-progress";
+import type { ProgressRow } from "@/lib/queries/use-progress";
 
 const tabs = [
   { href: "/", label: "01 — Progress" },
@@ -14,12 +16,15 @@ const tabs = [
 
 interface AppNavProps {
   userId: string;
-  currentIndex?: number;
+  initialProgress: ProgressRow | null;
 }
 
-export function AppNav({ userId, currentIndex = 0 }: AppNavProps) {
+export function AppNav({ userId, initialProgress }: AppNavProps) {
   const pathname = usePathname();
   const [loggerOpen, setLoggerOpen] = useState(false);
+
+  // Reads from the same query cache as ProgressView — stays in sync automatically
+  const { data: progress } = useProgress(userId, initialProgress);
 
   return (
     <>
@@ -121,7 +126,8 @@ export function AppNav({ userId, currentIndex = 0 }: AppNavProps) {
         open={loggerOpen}
         onClose={() => setLoggerOpen(false)}
         userId={userId}
-        currentIndex={currentIndex}
+        currentOtIndex={progress?.ot_chapter_index ?? 0}
+        currentNtIndex={progress?.nt_chapter_index ?? 0}
       />
     </>
   );

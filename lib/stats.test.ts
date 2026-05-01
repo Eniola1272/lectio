@@ -1,82 +1,78 @@
 import { describe, it, expect } from "vitest";
 import {
-  computeStatsFromPosition,
+  computeStats,
   computeStreak,
   last30DaysDeltas,
   type HistoryEntry,
 } from "./stats";
-import { TOTAL_CH, TOTAL_OT_CH, TOTAL_NT_CH, chapterIndex } from "./bible";
+import { TOTAL_CH, TOTAL_OT_CH, TOTAL_NT_CH } from "./bible";
 
-// ── computeStatsFromPosition ──────────────────────────────────────────────────
+// ── computeStats ──────────────────────────────────────────────────────────────
 
-describe("computeStatsFromPosition", () => {
-  it("returns zeros for index 0", () => {
-    const s = computeStatsFromPosition(0);
-    expect(s.total).toBe(0);
+describe("computeStats", () => {
+  it("returns zeros when both indices are 0", () => {
+    const s = computeStats(0, 0);
     expect(s.ot).toBe(0);
     expect(s.nt).toBe(0);
+    expect(s.total).toBe(0);
     expect(s.totalPct).toBe(0);
   });
 
-  it("Genesis 1 = 1 OT chapter covered", () => {
-    const idx = chapterIndex("Genesis", 1); // should be 1
-    expect(idx).toBe(1);
-    const s = computeStatsFromPosition(idx);
+  it("Genesis 1 in OT only (otIdx=1, ntIdx=0)", () => {
+    const s = computeStats(1, 0);
     expect(s.ot).toBe(1);
     expect(s.nt).toBe(0);
     expect(s.total).toBe(1);
+    expect(s.otChaptersLeft).toBe(TOTAL_OT_CH - 1);
+    expect(s.ntChaptersLeft).toBe(TOTAL_NT_CH);
   });
 
-  it("end of OT (Malachi 4) = all 929 OT, 0 NT", () => {
-    const idx = chapterIndex("Malachi", 4);
-    expect(idx).toBe(TOTAL_OT_CH);
-    const s = computeStatsFromPosition(idx);
+  it("full OT + no NT", () => {
+    const s = computeStats(TOTAL_OT_CH, 0);
     expect(s.ot).toBe(TOTAL_OT_CH);
     expect(s.nt).toBe(0);
     expect(s.otPct).toBeCloseTo(100);
     expect(s.ntPct).toBe(0);
-    expect(s.chaptersLeftInTestament).toBe(0);
+    expect(s.otChaptersLeft).toBe(0);
+    expect(s.ntChaptersLeft).toBe(TOTAL_NT_CH);
+    expect(s.chaptersLeftInBible).toBe(TOTAL_NT_CH);
   });
 
-  it("Matthew 1 (first NT chapter) = full OT + 1 NT chapter", () => {
-    const idx = chapterIndex("Matthew", 1);
-    expect(idx).toBe(TOTAL_OT_CH + 1);
-    const s = computeStatsFromPosition(idx);
-    expect(s.ot).toBe(TOTAL_OT_CH);
+  it("no OT + Matthew 1 in NT (ntIdx=1)", () => {
+    const s = computeStats(0, 1);
+    expect(s.ot).toBe(0);
     expect(s.nt).toBe(1);
     expect(s.ntPct).toBeCloseTo((1 / TOTAL_NT_CH) * 100);
-    expect(s.chaptersLeftInTestament).toBe(TOTAL_NT_CH - 1);
   });
 
-  it("Luke 1 = full OT + Matthew 28 + Mark 16 NT chapters", () => {
-    const idx = chapterIndex("Luke", 1);
-    const ntCovered = 28 + 16 + 1; // Matthew + Mark + Luke 1
-    const s = computeStatsFromPosition(idx);
-    expect(s.ot).toBe(TOTAL_OT_CH);
-    expect(s.nt).toBe(ntCovered);
-    expect(s.chaptersLeftInTestament).toBe(TOTAL_NT_CH - ntCovered);
-  });
-
-  it("Revelation 22 (last chapter) = 100%", () => {
-    const idx = chapterIndex("Revelation", 22);
-    expect(idx).toBe(TOTAL_CH);
-    const s = computeStatsFromPosition(idx);
+  it("full OT + full NT = 100% Bible", () => {
+    const s = computeStats(TOTAL_OT_CH, TOTAL_NT_CH);
     expect(s.total).toBe(TOTAL_CH);
     expect(s.totalPct).toBeCloseTo(100);
     expect(s.chaptersLeftInBible).toBe(0);
   });
 
-  it("chaptersLeftInBible is correct mid-journey", () => {
-    const idx = chapterIndex("Genesis", 50); // end of Genesis
-    const s = computeStatsFromPosition(idx);
-    expect(s.chaptersLeftInBible).toBe(TOTAL_CH - 50);
+  it("independent mid-point positions", () => {
+    const s = computeStats(100, 50);
+    expect(s.ot).toBe(100);
+    expect(s.nt).toBe(50);
+    expect(s.total).toBe(150);
+    expect(s.chaptersLeftInBible).toBe(TOTAL_CH - 150);
+  });
+
+  it("caps OT and NT at their respective totals", () => {
+    const s = computeStats(9999, 9999);
+    expect(s.ot).toBe(TOTAL_OT_CH);
+    expect(s.nt).toBe(TOTAL_NT_CH);
+    expect(s.total).toBe(TOTAL_CH);
   });
 });
 
 // ── computeStreak ─────────────────────────────────────────────────────────────
 
-function makeHistory(dates: string[]): HistoryEntry[] {
+function makeHistory(dates: string[], testament: "old" | "new" = "old"): HistoryEntry[] {
   return dates.map((d, i) => ({
+    testament,
     book: "Genesis",
     chapter: i + 1,
     chapter_index: i + 1,
@@ -122,6 +118,15 @@ describe("computeStreak", () => {
     expect(r.current).toBe(0);
     expect(r.longest).toBe(2);
   });
+
+  it("mixed OT and NT entries count as one reading day", () => {
+    const mixed = [
+      ...makeHistory([today], "old"),
+      ...makeHistory([today], "new"),
+    ];
+    const r = computeStreak(mixed);
+    expect(r.current).toBe(1);
+  });
 });
 
 // ── last30DaysDeltas ──────────────────────────────────────────────────────────
@@ -136,21 +141,31 @@ describe("last30DaysDeltas", () => {
     expect(r.every((d) => d.chaptersAdvanced === 0)).toBe(true);
   });
 
-  it("calculates delta correctly for single day", () => {
+  it("calculates OT delta correctly", () => {
     const history: HistoryEntry[] = [
-      { book: "Genesis", chapter: 5, chapter_index: 5, recorded_at: today + "T09:00:00" },
-      { book: "Genesis", chapter: 10, chapter_index: 10, recorded_at: today + "T20:00:00" },
+      { testament: "old", book: "Genesis", chapter: 5, chapter_index: 5, recorded_at: today + "T09:00:00" },
+      { testament: "old", book: "Genesis", chapter: 10, chapter_index: 10, recorded_at: today + "T20:00:00" },
     ];
     const r = last30DaysDeltas(history);
     const todayEntry = r.find((d) => d.date === today);
-    // max that day = 10, max before = 0 → delta = 10
     expect(todayEntry?.chaptersAdvanced).toBe(10);
+  });
+
+  it("sums OT and NT deltas on the same day", () => {
+    const history: HistoryEntry[] = [
+      { testament: "old", book: "Genesis", chapter: 5, chapter_index: 5, recorded_at: today + "T09:00:00" },
+      { testament: "new", book: "Matthew", chapter: 3, chapter_index: 3, recorded_at: today + "T20:00:00" },
+    ];
+    const r = last30DaysDeltas(history);
+    const todayEntry = r.find((d) => d.date === today);
+    // OT delta = 5, NT delta = 3 → total = 8
+    expect(todayEntry?.chaptersAdvanced).toBe(8);
   });
 
   it("does not count backwards movement", () => {
     const history: HistoryEntry[] = [
-      { book: "Genesis", chapter: 10, chapter_index: 10, recorded_at: yesterday + "T09:00:00" },
-      { book: "Genesis", chapter: 8, chapter_index: 8, recorded_at: today + "T09:00:00" },
+      { testament: "old", book: "Genesis", chapter: 10, chapter_index: 10, recorded_at: yesterday + "T09:00:00" },
+      { testament: "old", book: "Genesis", chapter: 8, chapter_index: 8, recorded_at: today + "T09:00:00" },
     ];
     const r = last30DaysDeltas(history);
     const todayEntry = r.find((d) => d.date === today);

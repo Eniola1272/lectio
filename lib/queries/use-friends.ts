@@ -9,8 +9,9 @@ export interface FriendProfile {
 }
 
 export interface FriendWithProgress extends FriendProfile {
-  chapter_index: number;
-  history: { chapter_index: number; recorded_at: string }[];
+  ot_chapter_index: number;
+  nt_chapter_index: number;
+  history: { testament: string; chapter_index: number; recorded_at: string }[];
 }
 
 export interface PendingRequest {
@@ -39,40 +40,44 @@ export function useFriends(userId: string) {
       );
       if (!friendIds.length) return [];
 
-      const [{ data: profiles, error: pErr }, { data: positions, error: posErr }, { data: histories, error: hErr }] =
-        await Promise.all([
-          supabase
-            .from("profiles")
-            .select("id, display_name")
-            .in("id", friendIds),
-          supabase
-            .from("reading_progress")
-            .select("user_id, chapter_index")
-            .in("user_id", friendIds),
-          supabase
-            .from("progress_history")
-            .select("user_id, chapter_index, recorded_at")
-            .in("user_id", friendIds)
-            .gte(
-              "recorded_at",
-              new Date(Date.now() - 30 * 86400000).toISOString()
-            )
-            .order("recorded_at", { ascending: true }),
-        ]);
+      const [
+        { data: profiles, error: pErr },
+        { data: positions, error: posErr },
+        { data: histories, error: hErr },
+      ] = await Promise.all([
+        supabase.from("profiles").select("id, display_name").in("id", friendIds),
+        supabase
+          .from("reading_progress")
+          .select("user_id, ot_chapter_index, nt_chapter_index")
+          .in("user_id", friendIds),
+        supabase
+          .from("progress_history")
+          .select("user_id, testament, chapter_index, recorded_at")
+          .in("user_id", friendIds)
+          .gte("recorded_at", new Date(Date.now() - 30 * 86400000).toISOString())
+          .order("recorded_at", { ascending: true }),
+      ]);
 
       if (pErr) throw pErr;
       if (posErr) throw posErr;
       if (hErr) throw hErr;
 
-      return (profiles ?? []).map((p) => ({
-        id: p.id,
-        display_name: p.display_name,
-        chapter_index:
-          positions?.find((pos) => pos.user_id === p.id)?.chapter_index ?? 0,
-        history: (histories ?? [])
-          .filter((h) => h.user_id === p.id)
-          .map((h) => ({ chapter_index: h.chapter_index, recorded_at: h.recorded_at })),
-      }));
+      return (profiles ?? []).map((p) => {
+        const pos = positions?.find((r) => r.user_id === p.id);
+        return {
+          id: p.id,
+          display_name: p.display_name,
+          ot_chapter_index: pos?.ot_chapter_index ?? 0,
+          nt_chapter_index: pos?.nt_chapter_index ?? 0,
+          history: (histories ?? [])
+            .filter((h) => h.user_id === p.id)
+            .map((h) => ({
+              testament: h.testament,
+              chapter_index: h.chapter_index,
+              recorded_at: h.recorded_at,
+            })),
+        };
+      });
     },
     enabled: !!userId,
   });
@@ -136,13 +141,7 @@ export function useSendFriendRequest(userId: string) {
 export function useAcceptFriendRequest(userId: string) {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: async ({
-      user_a,
-      user_b,
-    }: {
-      user_a: string;
-      user_b: string;
-    }) => {
+    mutationFn: async ({ user_a, user_b }: { user_a: string; user_b: string }) => {
       const supabase = createClient();
       const { error } = await supabase
         .from("friendships")

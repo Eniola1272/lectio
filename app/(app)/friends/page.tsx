@@ -11,24 +11,17 @@ export default async function FriendsPage() {
 
   const [{ data: profileData }, { data: progressData }, { data: historyData }] =
     await Promise.all([
-      supabase
-        .from("profiles")
-        .select("id, display_name")
-        .eq("id", user.id)
-        .single(),
+      supabase.from("profiles").select("id, display_name").eq("id", user.id).single(),
       supabase
         .from("reading_progress")
-        .select("chapter_index")
+        .select("ot_chapter_index, nt_chapter_index")
         .eq("user_id", user.id)
         .single(),
       supabase
         .from("progress_history")
-        .select("chapter_index, recorded_at")
+        .select("testament, chapter_index, recorded_at")
         .eq("user_id", user.id)
-        .gte(
-          "recorded_at",
-          new Date(Date.now() - 30 * 86400000).toISOString()
-        )
+        .gte("recorded_at", new Date(Date.now() - 30 * 86400000).toISOString())
         .order("recorded_at", { ascending: true }),
     ]);
 
@@ -36,7 +29,8 @@ export default async function FriendsPage() {
     <FriendsView
       userId={user.id}
       myDisplayName={profileData?.display_name ?? "You"}
-      myChapterIndex={progressData?.chapter_index ?? 0}
+      myOtIndex={progressData?.ot_chapter_index ?? 0}
+      myNtIndex={progressData?.nt_chapter_index ?? 0}
       myHistory={historyData ?? []}
     />
   );

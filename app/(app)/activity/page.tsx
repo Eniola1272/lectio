@@ -13,12 +13,9 @@ export default async function ActivityPage() {
   } = await supabase.auth.getUser();
   if (!user) redirect("/login");
 
-  const since = new Date();
-  since.setDate(since.getDate() - 30);
-
   const { data } = await supabase
     .from("progress_history")
-    .select("book, chapter, chapter_index, recorded_at")
+    .select("testament, book, chapter, chapter_index, recorded_at")
     .eq("user_id", user.id)
     .order("recorded_at", { ascending: true });
 
@@ -71,8 +68,7 @@ export default async function ActivityPage() {
               fontStyle: "italic",
             }}
           >
-            No bookmark moves yet. Press{" "}
-            <em>Move Bookmark</em> to begin.
+            No bookmark moves yet. Press <em>Move Bookmark</em> to begin.
           </div>
         ) : (
           <div className="mt-6">
@@ -109,7 +105,7 @@ export default async function ActivityPage() {
                     style={{
                       fontFamily: "DM Mono, monospace",
                       fontSize: 12,
-                      color: "#a87132",
+                      color: e.testament === "old" ? "#a87132" : "#5d7a3a",
                     }}
                   >
                     ch. {e.chapter}
@@ -124,7 +120,7 @@ export default async function ActivityPage() {
                     textTransform: "uppercase",
                   }}
                 >
-                  #{e.chapter_index}
+                  {e.testament === "old" ? "OT" : "NT"}
                 </div>
               </div>
             ))}

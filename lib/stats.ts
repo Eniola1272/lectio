@@ -1,13 +1,15 @@
 import { TOTAL_CH, TOTAL_NT_CH, TOTAL_OT_CH } from "./bible";
+import type { Testament } from "./bible";
 
 export interface Stats {
-  ot: number;      // OT chapters covered
-  nt: number;      // NT chapters covered
-  total: number;   // total chapters covered
+  ot: number;
+  nt: number;
+  total: number;
   otPct: number;
   ntPct: number;
   totalPct: number;
-  chaptersLeftInTestament: number; // chapters left in whichever testament the position is in
+  otChaptersLeft: number;
+  ntChaptersLeft: number;
   chaptersLeftInBible: number;
 }
 
@@ -23,27 +25,21 @@ export interface DayDelta {
 }
 
 export interface HistoryEntry {
+  testament: Testament;
   book: string;
   chapter: number;
-  chapter_index: number;
+  chapter_index: number; // testament-relative (OT: 1-929, NT: 1-260)
   recorded_at: string;
 }
 
 /**
- * Compute stats from a single position in canonical Bible order.
- * chapterIndex is 1-based (1 = Genesis 1, 1189 = Revelation 22).
- * Everything from index 1 through chapterIndex is considered "covered".
+ * Compute stats from two independent testament positions.
+ * otIdx: 1-929 (0 = not started), ntIdx: 1-260 (0 = not started).
  */
-export function computeStatsFromPosition(chapterIdx: number): Stats {
-  const total = Math.max(0, Math.min(chapterIdx, TOTAL_CH));
-  const ot = Math.min(total, TOTAL_OT_CH);
-  const nt = Math.max(0, total - TOTAL_OT_CH);
-
-  const inOT = total <= TOTAL_OT_CH;
-  const chaptersLeftInTestament = inOT
-    ? TOTAL_OT_CH - total
-    : TOTAL_NT_CH - nt;
-
+export function computeStats(otIdx: number, ntIdx: number): Stats {
+  const ot = Math.max(0, Math.min(otIdx, TOTAL_OT_CH));
+  const nt = Math.max(0, Math.min(ntIdx, TOTAL_NT_CH));
+  const total = ot + nt;
   return {
     ot,
     nt,
@@ -51,14 +47,15 @@ export function computeStatsFromPosition(chapterIdx: number): Stats {
     otPct: (ot / TOTAL_OT_CH) * 100,
     ntPct: (nt / TOTAL_NT_CH) * 100,
     totalPct: (total / TOTAL_CH) * 100,
-    chaptersLeftInTestament,
+    otChaptersLeft: TOTAL_OT_CH - ot,
+    ntChaptersLeft: TOTAL_NT_CH - nt,
     chaptersLeftInBible: TOTAL_CH - total,
   };
 }
 
 /**
  * Compute streak from history entries (consecutive calendar days with at least
- * one bookmark move).
+ * one bookmark move, either testament).
  */
 export function computeStreak(entries: HistoryEntry[]): StreakResult {
   if (!entries.length) return { current: 0, longest: 0 };
@@ -100,15 +97,18 @@ export function computeStreak(entries: HistoryEntry[]): StreakResult {
 }
 
 /**
- * Build a 30-day bar chart dataset from position history.
- * Each bar shows how many chapters the user advanced on that day
- * (delta from previous recorded position).
+ * Build a 30-day delta dataset.
+ * Each day shows total chapters advanced across both testaments.
+ * chapter_index values are testament-relative so OT and NT deltas are computed
+ * independently and then summed.
  */
 export function last30DaysDeltas(history: HistoryEntry[]): DayDelta[] {
   const result: DayDelta[] = [];
   const sorted = [...history].sort((a, b) =>
     a.recorded_at.localeCompare(b.recorded_at)
   );
+  const otEntries = sorted.filter((e) => e.testament === "old");
+  const ntEntries = sorted.filter((e) => e.testament === "new");
 
   for (let d = 29; d >= 0; d--) {
     const dt = new Date();
@@ -124,25 +124,21 @@ export function last30DaysDeltas(history: HistoryEntry[]): DayDelta[] {
     });
   }
 
-  // For each day in the window, find the highest index reached that day
-  // vs the highest index reached before that day → delta
-  const windowStart = result[0].date;
-
   for (const dayResult of result) {
     const endOfDay = dayResult.date + "T23:59:59";
     const startOfDay = dayResult.date + "T00:00:00";
 
-    const maxThatDay = sorted
-      .filter(
-        (e) => e.recorded_at >= startOfDay && e.recorded_at <= endOfDay
-      )
-      .reduce((max, e) => Math.max(max, e.chapter_index), 0);
+    const delta = (entries: HistoryEntry[]) => {
+      const maxDay = entries
+        .filter((e) => e.recorded_at >= startOfDay && e.recorded_at <= endOfDay)
+        .reduce((max, e) => Math.max(max, e.chapter_index), 0);
+      const maxBefore = entries
+        .filter((e) => e.recorded_at < startOfDay)
+        .reduce((max, e) => Math.max(max, e.chapter_index), 0);
+      return Math.max(0, maxDay - maxBefore);
+    };
 
-    const maxBefore = sorted
-      .filter((e) => e.recorded_at < startOfDay)
-      .reduce((max, e) => Math.max(max, e.chapter_index), 0);
-
-    dayResult.chaptersAdvanced = Math.max(0, maxThatDay - maxBefore);
+    dayResult.chaptersAdvanced = delta(otEntries) + delta(ntEntries);
   }
 
   return result;
