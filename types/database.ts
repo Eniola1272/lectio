@@ -12,50 +12,59 @@ export interface Database {
   public: {
     Tables: {
       profiles: {
+        Row: { id: string; display_name: string; created_at: string };
+        Insert: { id: string; display_name: string; created_at?: string };
+        Update: { id?: string; display_name?: string; created_at?: string };
+        Relationships: [];
+      };
+      reading_progress: {
         Row: {
-          id: string;
-          display_name: string;
-          created_at: string;
+          user_id: string;
+          book: string;
+          chapter: number;
+          chapter_index: number;
+          updated_at: string;
         };
         Insert: {
-          id: string;
-          display_name: string;
-          created_at?: string;
+          user_id: string;
+          book: string;
+          chapter: number;
+          chapter_index: number;
+          updated_at?: string;
         };
         Update: {
-          id?: string;
-          display_name?: string;
-          created_at?: string;
+          user_id?: string;
+          book?: string;
+          chapter?: number;
+          chapter_index?: number;
+          updated_at?: string;
         };
         Relationships: [];
       };
-      reading_entries: {
+      progress_history: {
         Row: {
           id: string;
           user_id: string;
-          testament: "old" | "new";
           book: string;
           chapter: number;
-          read_at: string;
-          created_at: string;
+          chapter_index: number;
+          recorded_at: string;
         };
         Insert: {
           id?: string;
           user_id: string;
-          testament: "old" | "new";
           book: string;
           chapter: number;
-          read_at?: string;
-          created_at?: string;
+          chapter_index: number;
+          recorded_at?: string;
         };
         Update: {
           id?: string;
           user_id?: string;
-          testament?: "old" | "new";
           book?: string;
           chapter?: number;
-          read_at?: string;
-          created_at?: string;
+          chapter_index?: number;
+          recorded_at?: string;
         };
         Relationships: [];
       };
@@ -84,26 +93,12 @@ export interface Database {
         Relationships: [];
       };
     };
-    Views: {
-      [_ in never]: never;
-    };
-    Functions: {
-      [_ in never]: never;
-    };
-    Enums: {
-      [_ in never]: never;
-    };
-    CompositeTypes: {
-      [_ in never]: never;
-    };
+    Views: { [_ in never]: never };
+    Functions: { [_ in never]: never };
+    Enums: { [_ in never]: never };
+    CompositeTypes: { [_ in never]: never };
   };
 }
 
 export type Tables<T extends keyof Database["public"]["Tables"]> =
   Database["public"]["Tables"][T]["Row"];
-
-export type TablesInsert<T extends keyof Database["public"]["Tables"]> =
-  Database["public"]["Tables"][T]["Insert"];
-
-export type TablesUpdate<T extends keyof Database["public"]["Tables"]> =
-  Database["public"]["Tables"][T]["Update"];

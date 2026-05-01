@@ -3,9 +3,10 @@ export type Testament = "old" | "new";
 export interface BibleBook {
   name: string;
   chapters: number;
+  testament: Testament;
 }
 
-export const BIBLE: Record<Testament, BibleBook[]> = {
+export const BIBLE: Record<Testament, Omit<BibleBook, "testament">[]> = {
   old: [
     { name: "Genesis", chapters: 50 },
     { name: "Exodus", chapters: 40 },
@@ -81,3 +82,45 @@ export const BIBLE: Record<Testament, BibleBook[]> = {
 export const TOTAL_OT_CH = BIBLE.old.reduce((s, b) => s + b.chapters, 0); // 929
 export const TOTAL_NT_CH = BIBLE.new.reduce((s, b) => s + b.chapters, 0); // 260
 export const TOTAL_CH = TOTAL_OT_CH + TOTAL_NT_CH; // 1189
+
+// Flat list of every chapter in canonical Bible order (Genesis 1 → Revelation 22)
+export interface CanonicalChapter {
+  book: string;
+  chapter: number;
+  testament: Testament;
+  /** 1-based position in the full Bible (1 = Genesis 1, 1189 = Revelation 22) */
+  index: number;
+}
+
+export const CANONICAL_CHAPTERS: CanonicalChapter[] = (() => {
+  const result: CanonicalChapter[] = [];
+  let i = 1;
+  for (const testament of ["old", "new"] as Testament[]) {
+    for (const book of BIBLE[testament]) {
+      for (let ch = 1; ch <= book.chapters; ch++) {
+        result.push({ book: book.name, chapter: ch, testament, index: i++ });
+      }
+    }
+  }
+  return result;
+})();
+
+// Fast lookup: "Book|chapter" → canonical index
+const INDEX_MAP = new Map<string, number>(
+  CANONICAL_CHAPTERS.map((c) => [`${c.book}|${c.chapter}`, c.index])
+);
+
+/** Returns the 1-based canonical index for a book+chapter (1 = Genesis 1). */
+export function chapterIndex(book: string, chapter: number): number {
+  return INDEX_MAP.get(`${book}|${chapter}`) ?? 0;
+}
+
+/** Returns the CanonicalChapter for a given 1-based index. */
+export function chapterAtIndex(index: number): CanonicalChapter | undefined {
+  return CANONICAL_CHAPTERS[index - 1];
+}
+
+/** Returns testament of a book. */
+export function testamentOf(book: string): Testament {
+  return BIBLE.old.some((b) => b.name === book) ? "old" : "new";
+}

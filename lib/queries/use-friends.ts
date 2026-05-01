@@ -2,15 +2,15 @@
 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { createClient } from "@/lib/supabase/client";
-import type { Entry } from "@/lib/stats";
 
 export interface FriendProfile {
   id: string;
   display_name: string;
 }
 
-export interface FriendWithEntries extends FriendProfile {
-  entries: Entry[];
+export interface FriendWithProgress extends FriendProfile {
+  chapter_index: number;
+  history: { chapter_index: number; recorded_at: string }[];
 }
 
 export interface PendingRequest {
@@ -24,7 +24,7 @@ export interface PendingRequest {
 export function useFriends(userId: string) {
   return useQuery({
     queryKey: ["friends", userId],
-    queryFn: async (): Promise<FriendWithEntries[]> => {
+    queryFn: async (): Promise<FriendWithProgress[]> => {
       const supabase = createClient();
 
       const { data: friendships, error: fErr } = await supabase
@@ -39,29 +39,39 @@ export function useFriends(userId: string) {
       );
       if (!friendIds.length) return [];
 
-      const { data: profiles, error: pErr } = await supabase
-        .from("profiles")
-        .select("id, display_name")
-        .in("id", friendIds);
-      if (pErr) throw pErr;
+      const [{ data: profiles, error: pErr }, { data: positions, error: posErr }, { data: histories, error: hErr }] =
+        await Promise.all([
+          supabase
+            .from("profiles")
+            .select("id, display_name")
+            .in("id", friendIds),
+          supabase
+            .from("reading_progress")
+            .select("user_id, chapter_index")
+            .in("user_id", friendIds),
+          supabase
+            .from("progress_history")
+            .select("user_id, chapter_index, recorded_at")
+            .in("user_id", friendIds)
+            .gte(
+              "recorded_at",
+              new Date(Date.now() - 30 * 86400000).toISOString()
+            )
+            .order("recorded_at", { ascending: true }),
+        ]);
 
-      const { data: entries, error: eErr } = await supabase
-        .from("reading_entries")
-        .select("user_id, testament, book, chapter, read_at")
-        .in("user_id", friendIds);
-      if (eErr) throw eErr;
+      if (pErr) throw pErr;
+      if (posErr) throw posErr;
+      if (hErr) throw hErr;
 
       return (profiles ?? []).map((p) => ({
         id: p.id,
         display_name: p.display_name,
-        entries: (entries ?? [])
-          .filter((e) => e.user_id === p.id)
-          .map((e) => ({
-            testament: e.testament as "old" | "new",
-            book: e.book,
-            chapter: e.chapter,
-            read_at: e.read_at,
-          })),
+        chapter_index:
+          positions?.find((pos) => pos.user_id === p.id)?.chapter_index ?? 0,
+        history: (histories ?? [])
+          .filter((h) => h.user_id === p.id)
+          .map((h) => ({ chapter_index: h.chapter_index, recorded_at: h.recorded_at })),
       }));
     },
     enabled: !!userId,

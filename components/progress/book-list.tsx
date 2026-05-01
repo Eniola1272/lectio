@@ -1,23 +1,18 @@
 import { Check } from "lucide-react";
-import type { BibleBook, Testament } from "@/lib/bible";
-import type { Entry } from "@/lib/stats";
+import { chapterIndex } from "@/lib/bible";
+
+interface Book {
+  name: string;
+  chapters: number;
+}
 
 interface BookListProps {
   title: string;
-  books: BibleBook[];
-  entries: Entry[];
-  testament: Testament;
+  books: Book[];
+  currentChapterIndex: number;
 }
 
-export function BookList({ title, books, entries, testament }: BookListProps) {
-  const counts: Record<string, Set<number>> = {};
-  entries
-    .filter((e) => e.testament === testament)
-    .forEach((e) => {
-      if (!counts[e.book]) counts[e.book] = new Set();
-      counts[e.book].add(e.chapter);
-    });
-
+export function BookList({ title, books, currentChapterIndex }: BookListProps) {
   return (
     <div>
       <div
@@ -34,9 +29,20 @@ export function BookList({ title, books, entries, testament }: BookListProps) {
       </div>
       <div>
         {books.map((b) => {
-          const read = counts[b.name]?.size ?? 0;
-          const pct = (read / b.chapters) * 100;
-          const done = read === b.chapters;
+          const firstIdx = chapterIndex(b.name, 1);
+          const lastIdx = chapterIndex(b.name, b.chapters);
+
+          let covered = 0;
+          if (currentChapterIndex >= lastIdx) {
+            covered = b.chapters;
+          } else if (currentChapterIndex >= firstIdx) {
+            covered = currentChapterIndex - firstIdx + 1;
+          }
+
+          const pct = (covered / b.chapters) * 100;
+          const done = covered === b.chapters;
+          const started = covered > 0;
+
           return (
             <div
               key={b.name}
@@ -53,7 +59,7 @@ export function BookList({ title, books, entries, testament }: BookListProps) {
                       width: 6,
                       height: 6,
                       borderRadius: "50%",
-                      background: read > 0 ? "#a87132" : "#d4be96",
+                      background: started ? "#a87132" : "#d4be96",
                     }}
                   />
                 )}
@@ -62,8 +68,8 @@ export function BookList({ title, books, entries, testament }: BookListProps) {
                 style={{
                   flex: 1,
                   fontSize: 17,
-                  fontStyle: read > 0 ? "italic" : "normal",
-                  color: read > 0 ? "#2c1d0f" : "#7a5d3a",
+                  fontStyle: started ? "italic" : "normal",
+                  color: started ? "#2c1d0f" : "#7a5d3a",
                   fontFamily: "Cormorant Garamond, serif",
                 }}
               >
@@ -78,7 +84,7 @@ export function BookList({ title, books, entries, testament }: BookListProps) {
                   textAlign: "right",
                 }}
               >
-                {read}/{b.chapters}
+                {covered}/{b.chapters}
               </div>
               <div
                 style={{

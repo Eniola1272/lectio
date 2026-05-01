@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Plus } from "lucide-react";
+import { MapPin } from "lucide-react";
 import { useState } from "react";
 import { ChapterLogger } from "@/components/logger/chapter-logger";
 
@@ -12,7 +12,12 @@ const tabs = [
   { href: "/friends", label: "03 — Friends" },
 ];
 
-export function AppNav({ userId }: { userId: string }) {
+interface AppNavProps {
+  userId: string;
+  currentIndex?: number;
+}
+
+export function AppNav({ userId, currentIndex = 0 }: AppNavProps) {
   const pathname = usePathname();
   const [loggerOpen, setLoggerOpen] = useState(false);
 
@@ -57,7 +62,7 @@ export function AppNav({ userId }: { userId: string }) {
                 maxWidth: 480,
               }}
             >
-              A quiet record of chapters read — from Genesis through Revelation.
+              A quiet record of progress — from Genesis through Revelation.
             </p>
           </div>
 
@@ -74,7 +79,7 @@ export function AppNav({ userId }: { userId: string }) {
               border: "1px solid #2c1d0f",
             }}
           >
-            <Plus size={14} /> Mark Chapter
+            <MapPin size={14} /> Move Bookmark
           </button>
         </div>
 
@@ -91,14 +96,17 @@ export function AppNav({ userId }: { userId: string }) {
         }}
       >
         {tabs.map((t) => {
-          const active = t.href === "/" ? pathname === "/" : pathname.startsWith(t.href);
+          const active =
+            t.href === "/" ? pathname === "/" : pathname.startsWith(t.href);
           return (
             <Link
               key={t.href}
               href={t.href}
               style={{
                 color: active ? "#2c1d0f" : "#a89070",
-                borderBottom: active ? "1px solid #2c1d0f" : "1px solid transparent",
+                borderBottom: active
+                  ? "1px solid #2c1d0f"
+                  : "1px solid transparent",
                 paddingBottom: 6,
                 transition: "all 0.2s",
               }}
@@ -113,6 +121,7 @@ export function AppNav({ userId }: { userId: string }) {
         open={loggerOpen}
         onClose={() => setLoggerOpen(false)}
         userId={userId}
+        currentIndex={currentIndex}
       />
     </>
   );

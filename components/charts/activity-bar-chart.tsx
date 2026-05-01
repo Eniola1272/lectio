@@ -8,7 +8,7 @@ import {
   Tooltip,
   ResponsiveContainer,
 } from "recharts";
-import type { DayCount } from "@/lib/stats";
+import type { DayDelta } from "@/lib/stats";
 
 const tooltipStyle = {
   background: "#2c1d0f",
@@ -20,7 +20,7 @@ const tooltipStyle = {
 };
 
 interface ActivityBarChartProps {
-  data: DayCount[];
+  data: DayDelta[];
 }
 
 export function ActivityBarChart({ data }: ActivityBarChartProps) {
@@ -42,7 +42,7 @@ export function ActivityBarChart({ data }: ActivityBarChartProps) {
           allowDecimals={false}
         />
         <Tooltip contentStyle={tooltipStyle} cursor={{ fill: "#ebdcb8" }} />
-        <Bar dataKey="count" fill="#a87132" name="chapters" />
+        <Bar dataKey="chaptersAdvanced" fill="#a87132" name="chapters advanced" />
       </BarChart>
     </ResponsiveContainer>
   );

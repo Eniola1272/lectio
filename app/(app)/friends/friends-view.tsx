@@ -10,21 +10,26 @@ import {
   useAcceptFriendRequest,
   useSearchUsers,
 } from "@/lib/queries/use-friends";
-import { computeStats, type Entry, type Stats } from "@/lib/stats";
+import { TOTAL_CH } from "@/lib/bible";
 import { UserPlus, Check } from "lucide-react";
+
+interface HistoryPoint {
+  chapter_index: number;
+  recorded_at: string;
+}
 
 interface FriendsViewProps {
   userId: string;
   myDisplayName: string;
-  myStats: Stats;
-  myEntries: Entry[];
+  myChapterIndex: number;
+  myHistory: HistoryPoint[];
 }
 
 export function FriendsView({
   userId,
   myDisplayName,
-  myStats,
-  myEntries,
+  myChapterIndex,
+  myHistory,
 }: FriendsViewProps) {
   const [search, setSearch] = useState("");
 
@@ -34,18 +39,23 @@ export function FriendsView({
   const sendRequest = useSendFriendRequest(userId);
   const acceptRequest = useAcceptFriendRequest(userId);
 
-  // Leaderboard: me + accepted friends
+  // Leaderboard: me + accepted friends, ranked by chapter_index
   const leaderboard = [
-    { id: userId, display_name: myDisplayName, stats: myStats, isMe: true },
+    {
+      id: userId,
+      display_name: myDisplayName,
+      chapter_index: myChapterIndex,
+      isMe: true,
+    },
     ...friends.map((f) => ({
       id: f.id,
       display_name: f.display_name,
-      stats: computeStats(f.entries),
+      chapter_index: f.chapter_index,
       isMe: false,
     })),
-  ].sort((a, b) => b.stats.total - a.stats.total);
+  ].sort((a, b) => b.chapter_index - a.chapter_index);
 
-  // Cumulative line chart data — last 30 days
+  // Comparison chart: position (chapter_index) over last 30 days
   const days: string[] = [];
   for (let d = 29; d >= 0; d--) {
     const dt = new Date();
@@ -53,17 +63,25 @@ export function FriendsView({
     days.push(dt.toISOString().slice(0, 10));
   }
 
+  function posOnDay(
+    history: HistoryPoint[],
+    endOfDay: string
+  ): number {
+    return history
+      .filter((h) => h.recorded_at <= endOfDay)
+      .reduce((max, h) => Math.max(max, h.chapter_index), 0);
+  }
+
   const chartData = days.map((date) => {
-    const point: Record<string, string | number> = {
-      date,
-      label: new Date(date + "T12:00:00").toLocaleDateString("en", {
-        month: "short",
-        day: "numeric",
-      }),
-      [userId]: myEntries.filter((e) => e.read_at <= date).length,
-    };
+    const endOfDay = date + "T23:59:59";
+    const label = new Date(date + "T12:00:00").toLocaleDateString("en", {
+      month: "short",
+      day: "numeric",
+    });
+    const point: Record<string, string | number> = { date, label };
+    point[userId] = posOnDay(myHistory, endOfDay);
     friends.forEach((f) => {
-      point[f.id] = f.entries.filter((e) => e.read_at <= date).length;
+      point[f.id] = posOnDay(f.history, endOfDay);
     });
     return point;
   });
@@ -206,90 +224,91 @@ export function FriendsView({
           </div>
         ) : (
           <div className="mt-4 space-y-1">
-            {leaderboard.map((p, i) => (
-              <div
-                key={p.id}
-                className="flex items-center gap-4 p-4"
-                style={{
-                  background: p.isMe ? "#2c1d0f" : "#fbf6ea",
-                  color: p.isMe ? "#f4ede0" : "#2c1d0f",
-                  border: "1px solid #d4be96",
-                }}
-              >
+            {leaderboard.map((p, i) => {
+              const pct = (p.chapter_index / TOTAL_CH) * 100;
+              return (
                 <div
+                  key={p.id}
+                  className="flex items-center gap-4 p-4"
                   style={{
-                    fontFamily: "DM Mono, monospace",
-                    fontSize: 11,
-                    letterSpacing: "0.2em",
-                    color: p.isMe ? "#a87132" : "#7a5d3a",
-                    minWidth: 24,
+                    background: p.isMe ? "#2c1d0f" : "#fbf6ea",
+                    color: p.isMe ? "#f4ede0" : "#2c1d0f",
+                    border: "1px solid #d4be96",
                   }}
                 >
-                  {String(i + 1).padStart(2, "0")}
-                </div>
-                <div
-                  style={{ fontSize: 22, fontStyle: "italic", flex: 1 }}
-                >
-                  {p.display_name}
-                  {p.isMe && (
-                    <span
-                      style={{
-                        fontFamily: "DM Mono, monospace",
-                        fontSize: 10,
-                        letterSpacing: "0.2em",
-                        color: "#a87132",
-                        marginLeft: 10,
-                      }}
-                    >
-                      YOU
-                    </span>
-                  )}
-                </div>
-                <div className="flex items-baseline gap-6">
                   <div
                     style={{
                       fontFamily: "DM Mono, monospace",
                       fontSize: 11,
-                      color: p.isMe ? "#c9b890" : "#7a5d3a",
+                      letterSpacing: "0.2em",
+                      color: p.isMe ? "#a87132" : "#7a5d3a",
+                      minWidth: 24,
                     }}
                   >
-                    {p.stats.total} ch
+                    {String(i + 1).padStart(2, "0")}
+                  </div>
+                  <div style={{ fontSize: 22, fontStyle: "italic", flex: 1 }}>
+                    {p.display_name}
+                    {p.isMe && (
+                      <span
+                        style={{
+                          fontFamily: "DM Mono, monospace",
+                          fontSize: 10,
+                          letterSpacing: "0.2em",
+                          color: "#a87132",
+                          marginLeft: 10,
+                        }}
+                      >
+                        YOU
+                      </span>
+                    )}
+                  </div>
+                  <div className="flex items-baseline gap-6">
+                    <div
+                      style={{
+                        fontFamily: "DM Mono, monospace",
+                        fontSize: 11,
+                        color: p.isMe ? "#c9b890" : "#7a5d3a",
+                      }}
+                    >
+                      ch. {p.chapter_index}
+                    </div>
+                    <div
+                      style={{
+                        fontSize: 24,
+                        fontStyle: "italic",
+                        minWidth: 80,
+                        textAlign: "right",
+                      }}
+                    >
+                      {pct.toFixed(1)}%
+                    </div>
                   </div>
                   <div
                     style={{
-                      fontSize: 24,
-                      fontStyle: "italic",
-                      minWidth: 80,
-                      textAlign: "right",
+                      flex: "0 0 100px",
+                      height: 3,
+                      background: p.isMe ? "#5a4023" : "#ebdcb8",
+                      position: "relative",
                     }}
                   >
-                    {p.stats.totalPct.toFixed(1)}%
+                    <div
+                      style={{
+                        position: "absolute",
+                        inset: 0,
+                        width: `${Math.min(pct, 100)}%`,
+                        background: p.isMe ? "#a87132" : "#2c1d0f",
+                      }}
+                    />
                   </div>
                 </div>
-                <div
-                  style={{
-                    flex: "0 0 100px",
-                    height: 3,
-                    background: p.isMe ? "#5a4023" : "#ebdcb8",
-                    position: "relative",
-                  }}
-                >
-                  <div
-                    style={{
-                      position: "absolute",
-                      inset: 0,
-                      width: `${Math.min(p.stats.totalPct, 100)}%`,
-                      background: p.isMe ? "#a87132" : "#2c1d0f",
-                    }}
-                  />
-                </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         )}
       </div>
 
-      {/* Comparison chart */}
+      {/* Position comparison chart — last 30 days */}
       {friends.length > 0 && (
         <div
           className="p-8"
@@ -297,7 +316,7 @@ export function FriendsView({
         >
           <SectionTitle
             eyebrow="Comparison"
-            title="Cumulative chapters · last 30 days"
+            title="Position progress · last 30 days"
           />
           <div style={{ marginTop: 24 }}>
             <CumulativeLineChart data={chartData} series={chartSeries} />

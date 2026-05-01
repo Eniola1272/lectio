@@ -1,9 +1,10 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import { last30Days, type Entry } from "@/lib/stats";
+import { computeStreak, last30DaysDeltas } from "@/lib/stats";
 import { SectionTitle } from "@/components/section-title";
 import { StatCard } from "@/components/progress/stat-card";
 import { ActivityBarChart } from "@/components/charts/activity-bar-chart";
+import { Flame, Award } from "lucide-react";
 
 export default async function ActivityPage() {
   const supabase = await createClient();
@@ -12,27 +13,39 @@ export default async function ActivityPage() {
   } = await supabase.auth.getUser();
   if (!user) redirect("/login");
 
-  const { data } = await supabase
-    .from("reading_entries")
-    .select("testament, book, chapter, read_at")
-    .eq("user_id", user.id)
-    .order("read_at", { ascending: false });
+  const since = new Date();
+  since.setDate(since.getDate() - 30);
 
-  const entries = (data ?? []) as Entry[];
-  const activity = last30Days(entries);
-  const total30 = activity.reduce((s, d) => s + d.count, 0);
-  const activeDays = activity.filter((d) => d.count > 0).length;
-  const recent = entries.slice(0, 12);
+  const { data } = await supabase
+    .from("progress_history")
+    .select("book, chapter, chapter_index, recorded_at")
+    .eq("user_id", user.id)
+    .order("recorded_at", { ascending: true });
+
+  const history = data ?? [];
+  const deltas = last30DaysDeltas(history);
+  const streak = computeStreak(history);
+
+  const total30 = deltas.reduce((s, d) => s + d.chaptersAdvanced, 0);
+  const activeDays = deltas.filter((d) => d.chaptersAdvanced > 0).length;
+  const recent = [...history].reverse().slice(0, 12);
 
   return (
     <div className="space-y-10">
-      <div className="grid grid-cols-3 gap-6">
-        <StatCard label="Last 30 days" value={total30} sub="chapters" />
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-6">
+        <StatCard label="Chapters advanced" value={total30} sub="last 30 days" />
         <StatCard label="Active days" value={activeDays} sub="of last 30" />
         <StatCard
-          label="Daily avg"
-          value={(total30 / 30).toFixed(1)}
-          sub="chapters / day"
+          label="Current streak"
+          value={streak.current}
+          sub="days in a row"
+          icon={<Flame size={16} />}
+        />
+        <StatCard
+          label="Longest streak"
+          value={streak.longest}
+          sub="personal best"
+          icon={<Award size={16} />}
         />
       </div>
 
@@ -42,12 +55,12 @@ export default async function ActivityPage() {
       >
         <SectionTitle eyebrow="Rhythm" title="Last 30 days" />
         <div style={{ marginTop: 24 }}>
-          <ActivityBarChart data={activity} />
+          <ActivityBarChart data={deltas} />
         </div>
       </div>
 
       <div>
-        <SectionTitle eyebrow="History" title="Recent chapters" />
+        <SectionTitle eyebrow="History" title="Bookmark moves" />
         {recent.length === 0 ? (
           <div
             className="mt-6 p-12 text-center"
@@ -58,8 +71,8 @@ export default async function ActivityPage() {
               fontStyle: "italic",
             }}
           >
-            No chapters logged yet. Press{" "}
-            <em>Mark Chapter</em> to begin.
+            No bookmark moves yet. Press{" "}
+            <em>Move Bookmark</em> to begin.
           </div>
         ) : (
           <div className="mt-6">
@@ -78,10 +91,10 @@ export default async function ActivityPage() {
                       minWidth: 80,
                     }}
                   >
-                    {new Date(e.read_at + "T12:00:00").toLocaleDateString(
-                      "en",
-                      { month: "short", day: "numeric" }
-                    )}
+                    {new Date(e.recorded_at).toLocaleDateString("en", {
+                      month: "short",
+                      day: "numeric",
+                    })}
                   </div>
                   <div
                     style={{
@@ -111,7 +124,7 @@ export default async function ActivityPage() {
                     textTransform: "uppercase",
                   }}
                 >
-                  {e.testament === "old" ? "OT" : "NT"}
+                  #{e.chapter_index}
                 </div>
               </div>
             ))}
