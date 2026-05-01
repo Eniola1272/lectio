@@ -139,7 +139,7 @@ export default function AboutPage() {
           The name <em style={serif}>Lectio</em> comes from{" "}
           <em style={serif}>Lectio Divina</em> — the ancient Christian practice
           of slow, meditative reading of Scripture. This app carries that same
-          spirit: unhurried, deliberate, and deeply personal.
+          spirit: unhurried, deliberate, easy, and deeply personal.
         </p>
       </div>
 
