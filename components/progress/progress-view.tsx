@@ -63,6 +63,7 @@ export function ProgressView({ userId, initialProgress }: ProgressViewProps) {
             title="New Testament"
             books={BIBLE.new}
             currentChapterIndex={ntIdx}
+            testament="new"
           />
         </div>
       </div>

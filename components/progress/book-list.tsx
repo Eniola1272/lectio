@@ -1,5 +1,5 @@
 import { Check } from "lucide-react";
-import { chapterIndex } from "@/lib/bible";
+import { chapterIndex, TOTAL_OT_CH } from "@/lib/bible";
 
 interface Book {
   name: string;
@@ -10,9 +10,15 @@ interface BookListProps {
   title: string;
   books: Book[];
   currentChapterIndex: number;
+  /** Pass "new" for the NT list so indices are normalised to NT-relative (1-260) */
+  testament?: "old" | "new";
 }
 
-export function BookList({ title, books, currentChapterIndex }: BookListProps) {
+export function BookList({ title, books, currentChapterIndex, testament = "old" }: BookListProps) {
+  // Bible-absolute indices for OT start at 1; for NT they start at 930.
+  // currentChapterIndex is always testament-relative, so subtract the OT offset for NT books.
+  const offset = testament === "new" ? TOTAL_OT_CH : 0;
+
   return (
     <div>
       <div
@@ -29,8 +35,8 @@ export function BookList({ title, books, currentChapterIndex }: BookListProps) {
       </div>
       <div>
         {books.map((b) => {
-          const firstIdx = chapterIndex(b.name, 1);
-          const lastIdx = chapterIndex(b.name, b.chapters);
+          const firstIdx = chapterIndex(b.name, 1) - offset;
+          const lastIdx = chapterIndex(b.name, b.chapters) - offset;
 
           let covered = 0;
           if (currentChapterIndex >= lastIdx) {
