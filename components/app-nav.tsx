@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { MapPin } from "lucide-react";
+import { MapPin, Menu, X } from "lucide-react";
 import { useState } from "react";
 import { ChapterLogger } from "@/components/logger/chapter-logger";
 import { useProgress } from "@/lib/queries/use-progress";
@@ -24,9 +24,14 @@ interface AppNavProps {
 export function AppNav({ userId, initialProgress }: AppNavProps) {
   const pathname = usePathname();
   const [loggerOpen, setLoggerOpen] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
 
   // Reads from the same query cache as ProgressView — stays in sync automatically
   const { data: progress } = useProgress(userId, initialProgress);
+
+  const activeTab = tabs.find((t) =>
+    t.href === "/" ? pathname === "/" : pathname.startsWith(t.href)
+  );
 
   return (
     <>
@@ -74,7 +79,7 @@ export function AppNav({ userId, initialProgress }: AppNavProps) {
 
           <button
             onClick={() => setLoggerOpen(true)}
-            className="flex items-center gap-2 px-6 py-3 transition-all hover:opacity-80"
+            className="flex items-center gap-2 px-4 sm:px-6 py-3 transition-all hover:opacity-80"
             style={{
               background: "#2c1d0f",
               color: "#f4ede0",
@@ -85,23 +90,24 @@ export function AppNav({ userId, initialProgress }: AppNavProps) {
               border: "1px solid #2c1d0f",
             }}
           >
-            <MapPin size={14} /> Move Bookmark
+            <MapPin size={14} />
+            <span className="hidden sm:inline">Move Bookmark</span>
+            <span className="sm:hidden">Bookmark</span>
           </button>
         </div>
 
         <div className="rule-ochre mt-8" />
       </header>
 
+      {/* Desktop nav — hidden on mobile */}
       <nav
-        className="flex gap-6 sm:gap-8 mb-10 overflow-x-auto"
+        className="hidden sm:flex gap-8 mb-10"
         style={{
           fontFamily: "DM Mono, monospace",
           fontSize: 11,
           letterSpacing: "0.25em",
           textTransform: "uppercase",
-          scrollbarWidth: "none",
-          msOverflowStyle: "none",
-        } as React.CSSProperties}
+        }}
       >
         {tabs.map((t) => {
           const active =
@@ -118,7 +124,6 @@ export function AppNav({ userId, initialProgress }: AppNavProps) {
                 paddingBottom: 6,
                 transition: "all 0.2s",
                 whiteSpace: "nowrap",
-                flexShrink: 0,
               }}
             >
               {t.label}
@@ -126,6 +131,66 @@ export function AppNav({ userId, initialProgress }: AppNavProps) {
           );
         })}
       </nav>
+
+      {/* Mobile nav — hidden on sm+ */}
+      <div className="sm:hidden mb-8">
+        <button
+          onClick={() => setMenuOpen((o) => !o)}
+          className="flex items-center justify-between w-full py-3 px-4"
+          style={{
+            background: "#fbf6ea",
+            border: "1px solid #d4be96",
+            fontFamily: "DM Mono, monospace",
+            fontSize: 11,
+            letterSpacing: "0.25em",
+            textTransform: "uppercase",
+            color: "#2c1d0f",
+          }}
+        >
+          <span>{activeTab?.label ?? "Menu"}</span>
+          {menuOpen ? <X size={16} /> : <Menu size={16} />}
+        </button>
+
+        {/* Dropdown */}
+        {menuOpen && (
+          <div
+            style={{
+              border: "1px solid #d4be96",
+              borderTop: "none",
+              background: "#fbf6ea",
+            }}
+          >
+            {tabs.map((t) => {
+              const active =
+                t.href === "/" ? pathname === "/" : pathname.startsWith(t.href);
+              return (
+                <Link
+                  key={t.href}
+                  href={t.href}
+                  onClick={() => setMenuOpen(false)}
+                  className="flex items-center justify-between px-4 py-3"
+                  style={{
+                    borderBottom: "1px dotted #d4be96",
+                    fontFamily: "DM Mono, monospace",
+                    fontSize: 11,
+                    letterSpacing: "0.25em",
+                    textTransform: "uppercase",
+                    color: active ? "#2c1d0f" : "#a89070",
+                    background: active ? "#f0e8d8" : "transparent",
+                  }}
+                >
+                  {t.label}
+                  {active && (
+                    <span style={{ color: "#a87132", fontSize: 16, lineHeight: 1 }}>
+                      ●
+                    </span>
+                  )}
+                </Link>
+              );
+            })}
+          </div>
+        )}
+      </div>
 
       <ChapterLogger
         open={loggerOpen}
